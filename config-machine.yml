@@ -1,0 +1,13 @@
+- hosts: my_machine
+  gather_facts: no
+  remote_user: root
+  vars:
+    ruby_major: 2.0
+    ruby_minor: 0
+    ruby_patch_level: p353
+    bundler_version: 1.3.5
+
+  roles:
+    - bootstrap
+    - deploy-user
+    - rbenv
