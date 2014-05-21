@@ -1,0 +1,118 @@
+---
+- name: rbenv | install build depends
+  apt: pkg=$item state=latest install_recommends=no
+  with_items:
+    - build-essential
+    - git
+    - libcurl4-openssl-dev
+    - libmysqlclient-dev
+    - libssl-dev
+    - libxml2-dev
+    - libxslt1-dev
+    - zlib1g-dev
+    - mysql-client
+    # mysql
+    - libmysql-ruby
+    # common tools used in ruby gems
+    - openssl
+    - curl
+    - zlib1g
+    # other common dev libs used in ruby gems
+    - libreadline6-dev
+    - libreadline6
+    - libyaml-dev
+    - libc6-dev
+    - imagemagick
+    # for asset compilation
+    - nodejs
+  remote_user: root
+
+#see https://github.com/mmoya/ansible-playbooks/blob/master/rbenv/main.yml
+#http://mmoya.org/blog/2013/02/22/installing-rubyrbenv-with-ansible/
+#https://github.com/leucos/ansible-rbenv-playbook/blob/master/roles/ruby/tasks/rbenv-setup.yml
+
+- name: rbenv | check rbenv binary installed
+  command: "test -x {{rbenv_root}}/bin/rbenv"
+  register: rbenv_present
+  ignore_errors: yes
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | update rbenv repo
+  git: repo=git://github.com/sstephenson/rbenv.git dest=$rbenv_root version=v0.4.0 update=yes
+  remote_user: "{{deploy_user}}"
+  when: rbenv_present
+
+- name: rbenv | add rbenv to path
+  shell: echo 'export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"' >> ~/.bashrc executable=/bin/bash
+  remote_user: "{{deploy_user}}"
+
+#- name: rbenv | add rbenv initialization to profile
+#  template: src=rbenv.sh.j2 dest=/etc/profile.d/rbenv.sh owner=root group=root mode=0755
+#  remote_user: root
+
+#see https://github.com/sstephenson/ruby-build#installing-as-a-standalone-program-advanced
+
+- name: rbenv | check ruby-build installed
+  command: test -x /usr/local/bin/ruby-build
+  register: rbuild_present
+  ignore_errors: yes
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | create temporary directory
+  command: mktemp -d
+  register: tempdir
+  failed_when: "'FAILED' in rbuild_present.stderr"
+  remote_user: root
+
+- name: rbenv | clone ruby-build repo
+  git: repo=git://github.com/sstephenson/ruby-build.git dest=${tempdir.stdout}/ruby-build
+  failed_when: "'FAILED' in rbuild_present.stderr"
+  remote_user: root
+
+- name: rbenv | install ruby-build
+  command: ./install.sh chdir=${tempdir.stdout}/ruby-build
+  failed_when: "'FAILED' in rbuild_present.stderr"
+  remote_user: root
+
+- name: rbenv | remove temporary directory
+  file: path=${tempdir.stdout} state=absent
+  failed_when: "'FAILED' in rbuild_present.stderr"
+  remote_user: root
+
+# end of ruby-build install
+
+# suggestion: runuser -l  ${deploy_user} -c  => command runuser not found on server
+- name: check current user
+  shell: RBENV_ROOT={{rbenv_root}} echo $PATH  executable=/bin/bash
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | check ruby $ruby_version installed
+  shell: RBENV_ROOT={{rbenv_root}} PATH=$PATH:{{rbenv_root}}/bin rbenv versions | grep $ruby_version executable=/bin/bash
+  register: ruby_installed
+  ignore_errors: yes
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | install ruby $ruby_version
+  shell: RBENV_ROOT={{rbenv_root}} PATH=$PATH:{{rbenv_root}}/bin  rbenv install $ruby_version executable=/bin/bash
+  when: ruby_installed|failed
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | set global ruby $ruby_version
+  shell: RBENV_ROOT={{rbenv_root}} PATH=$PATH:{{rbenv_root}}/bin rbenv global $ruby_version executable=/bin/bash
+  when: ruby_installed|failed
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | rehash
+  shell: RBENV_ROOT={{rbenv_root}} PATH=$PATH:{{rbenv_root}}/bin rbenv rehash executable=/bin/bash
+  when: ruby_installed|failed
+  remote_user: "{{deploy_user}}"
+
+- name: rbenv | set gemrc
+  copy: src=gemrc dest=/root/.gemrc owner=root group=root mode=0644
+  remote_user: root
+
+- name: install bundler
+  shell: PATH=$PATH:$HOME/.rbenv/bin:$HOME/.rbenv/shims gem install bundler -v={{ bundler_version }} executable=/bin/bash --no-rdoc --no-ri
+  remote_user: "{{deploy_user}}"
+  #remote_user: "{{deploy_user}}"
+  # TODO: fix

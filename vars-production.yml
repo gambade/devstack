@@ -1,0 +1,18 @@
+admin_keys:
+  # Add multiple admin keys, e.g. from team members.
+  # - ~/.ssh/team_member_1.pub
+  # - ~/.ssh/team_member_2.pub
+  #- ~/.ssh/deploy.pub
+  - ~/.ssh/id_dsa.pub
+# Make sure that the following keys are added to your github
+# deploy keys: https://github.com/settings/ssh
+# path to:
+deploy_keys:
+  - ~/.ssh/id_dsa.pub
+  #- ~/.ssh/github_rsa.pub
+
+#  - ~/dev/ansible/gambade/keys/boris_rsa.pub
+#  - ~sylvan/.ssh/github_rsa.pub
+  # Add multiple deploy keys, e.g. from team members.
+  # - ~/.ssh/team_member_1.pub
+  # - ~/.ssh/team_member_2.pub

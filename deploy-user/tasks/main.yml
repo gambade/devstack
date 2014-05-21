@@ -1,0 +1,25 @@
+---
+
+- name: Add the deploy user
+  user: name="{{ deploy_user }}"
+        home=/home/"{{ deploy_user }}"
+        shell=/bin/bash
+        comment="Deploy User"
+
+- name: add .ssh directory
+  file: path=/home/"{{ deploy_user }}"/.ssh
+        owner="{{ deploy_user }}"
+        state=directory
+
+- name: Add deploy ssh key up authorized_keys for the deploy user
+  authorized_key: user="{{ deploy_user }}"
+                  state=present
+                  key="{{ lookup('file', item ) }}"
+  with_items: deploy_keys
+  tags: add-deploy-keys
+
+- name: add github.com RSA fingerprint
+  template: src=known_hosts
+            dest=/home/$deploy_user/.ssh/known_hosts
+            owner={{deploy_user}}
+
